@@ -2,9 +2,12 @@
 import math
 import random
 import numpy
+import matplotlib.pyplot as plt
+import statistics
 
-POPULATION = 100
+POPULATION = 500
 
+NB_ESSAIS = 100
 VARIATION_GENES = 5/100
 
 
@@ -31,7 +34,7 @@ class Scorpion:
         self.longueur_fleche = longueur_fleche
         self.base_bras = base_bras
         self.hauteur_bras = hauteur_bras
-        self.fitness = 0
+        self.fitness = self.set_fitness()
 
     def ressort(self):
         return (1/3) * (self.module_young / (1 - 2 * self.coef_poisson))
@@ -76,6 +79,15 @@ class Scorpion:
 
     def is_rupture(self):
         return self.longueur_deplacement() > self.fleche_fmax()
+
+    def set_fitness(self):
+        if(self.is_tir() == True):
+            return round(self.energie_impact()*self.portee()*2)
+        else:
+            return round(self.energie_impact()*self.portee()*2)/4
+
+    def equal(self, scorpion):
+        return self.longueur_bras == scorpion.longueur_bras and self.longueur_corde == scorpion.longueur_corde and self.module_young == scorpion.module_young and self.coef_poisson == scorpion.coef_poisson and self.angle_deg == scorpion.angle_deg and self.gravite == scorpion.gravite and self.masse_volumique == scorpion.masse_volumique and self.base_fleche == scorpion.base_fleche and self.hauteur_fleche == scorpion.hauteur_fleche and self.longueur_fleche == scorpion.longueur_fleche and self.base_bras == scorpion.base_bras and self.hauteur_bras == scorpion.hauteur_bras
 # individus = energie impact ?
 
 
@@ -91,18 +103,13 @@ def generate_population():
                                    Materiau.coef_poisson, random.randrange(0, 90, 1), 9.81, Materiau.masse_volumique, random.randrange(0, 100, 1)/100, random.randrange(0, 100, 1)/100, random.randrange(0, 100, 1), random.randrange(0, 100, 1), random.randrange(0, 100, 1)))
 
 
-def set_fitnesses():
-    for pop in population:
-        if(pop.is_tir() == True):
-            pop.fitness = pop.energie_impact()*pop.portee()*2
-        else:
-            pop.fitness = 0
-
-
 def selection():
     population.sort(key=lambda x: x.fitness, reverse=True)
-    for x in range(round(POPULATION/2), POPULATION-1):
-        del population[round(POPULATION/2)]
+    return population[: round(POPULATION/2)]
+    # for x in range(0, round(POPULATION/2)):
+    #    print(population[x].fitness)
+    #    print(x)
+    #    del population[x]
 
 
 def croisements():
@@ -111,15 +118,15 @@ def croisements():
     nouvelle_population = []
     for pop in population:
         scorpion2 = numpy.random.choice(population, p=probs)
-        bebe_scorpion = croisement(pop, scorpion2)
-        nouvelle_population.append(bebe_scorpion)
+        bebe_scorpion2 = croisement(pop, scorpion2)
+        nouvelle_population.append(bebe_scorpion2)
         while True:
+            # print(probs)
             scorpion3 = numpy.random.choice(population, p=probs)
-            if(scorpion3.fitness != scorpion2.fitness):
-                bebe_scorpion2 = croisement(pop, scorpion3)
-                if(bebe_scorpion2 not in nouvelle_population):
-                    nouvelle_population.append(bebe_scorpion2)
-                    break
+            if(scorpion3 != scorpion2):
+                bebe_scorpion3 = croisement(pop, scorpion3)
+                nouvelle_population.append(bebe_scorpion3)
+                break
 
     return nouvelle_population
 
@@ -130,41 +137,111 @@ def croisement(scorpion1, scorpion2):
 
 def mutations():
     for i in range(0, len(population)-1):
-        if(decision(0.5)):
-            population[i].longueur_corde += 1
+        if(random.random() <= 0.5):
+            population[i].longueur_corde = population[i].longueur_corde + \
+                population[i].longueur_corde*VARIATION_GENES
+            population[i].longueur_bras = population[i].longueur_bras + \
+                population[i].longueur_bras*VARIATION_GENES
+            population[i].angle_deg = population[i].angle_deg + \
+                population[i].angle_deg*VARIATION_GENES
+            population[i].base_fleche = population[i].base_fleche + \
+                population[i].base_fleche*VARIATION_GENES
+            population[i].hauteur_fleche = population[i].hauteur_fleche + \
+                population[i].hauteur_fleche*VARIATION_GENES
+            population[i].longueur_fleche = population[i].longueur_fleche + \
+                population[i].longueur_fleche*VARIATION_GENES
+        else:
+            population[i].longueur_corde = population[i].longueur_corde - \
+                population[i].longueur_corde*VARIATION_GENES
+            population[i].longueur_bras = population[i].longueur_bras - \
+                population[i].longueur_bras*VARIATION_GENES
+            population[i].angle_deg = population[i].angle_deg - \
+                population[i].angle_deg*VARIATION_GENES
+            population[i].base_fleche = population[i].base_fleche - \
+                population[i].base_fleche*VARIATION_GENES
+            population[i].hauteur_fleche = population[i].hauteur_fleche - \
+                population[i].hauteur_fleche*VARIATION_GENES
+            population[i].longueur_fleche = population[i].longueur_fleche - \
+                population[i].longueur_fleche*VARIATION_GENES
+
+
+def population_contain(scorpion):
+    for pop in population:
+        if(pop.equal(scorpion)):
+            return True
 
 
 def afficher_population():
-    print('POPULATION :' + str(avg_fitness()) + ' / ' + str(max_fitness()))
+    print('POPULATION :' + str(sum_fitness()) + ' / ' + str(max_fitness()))
     # for pop in population:
     # print(pop.fitness)
 
 
-def decision(probability):
-    return random.random() < probability
-
-
 def max_fitness():
     fitnesses = [i.fitness for i in population]
-    return numpy.amax(fitnesses)
+    return round(numpy.amax(fitnesses)/1000000)
+
+
+def min_fitness():
+    fitnesses = [i.fitness for i in population]
+    return round(numpy.amin(fitnesses)/1000000)
+
+
+def sum_fitness():
+    fitnesses = [i.fitness for i in population]
+    return round(sum(fitnesses)/1000000)
 
 
 def avg_fitness():
     fitnesses = [i.fitness for i in population]
-    return numpy.mean(fitnesses)
+    return round(statistics.mean(fitnesses)/1000000)
 
 
 def start():
     global population
+    xAxis = []
+    max_fitnesses = []
+    avg_fitnesses = []
+    min_fitnesses = []
+    print('génération de la population')
     generate_population()
-    for i in range(0, 10):
-        set_fitnesses()
-        selection()
+    print('fin de génération de la population')
+
+    for i in range(0, NB_ESSAIS):
+        print('selection')
+        population = selection()
+        print(len(population))
+        afficher_population()
+        print('croisements')
         population = croisements()
-        set_fitnesses()
+        afficher_population()
+        print('mutations')
         mutations()
         afficher_population()
+        print(len(population))
+
+        xAxis.append(i)  # Remplissage du graph
+        max_fitnesses.append(max_fitness())
+        avg_fitnesses.append(avg_fitness())
+        min_fitnesses.append(min_fitness())
+        # if(i == 9):
+        #    for pop in population:
+        #        if(pop.fitness != 0):
+        #            print(pop.fitness)
     # afficher_population()
+    #plt.plot(xAxis, max_fitnesses)
+    #plt.plot(xAxis, avg_fitnesses)
+    #plt.plot(xAxis, sum_fitnesses)
+
+    fig, ax1 = plt.subplots()
+
+    ax1.set_xlabel('Génération')
+    #ax1.set_ylabel('exp', color=color)
+    ax1.plot(xAxis, max_fitnesses, color='tab:red', label='Fitness maximale')
+    ax1.plot(xAxis, avg_fitnesses, color='tab:blue', label='Fitness moyenne')
+    ax1.plot(xAxis, min_fitnesses, color='tab:green', label='Fitness minimale')
+    ax1.legend()
+    plt.show()
 
 
 start()
